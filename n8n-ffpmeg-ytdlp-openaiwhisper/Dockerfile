@@ -1,14 +1,14 @@
 ############################################
 # n8n + Execute Command + ffmpeg + yt-dlp + Whisper
-# FINAL CORRECT VERSION (Debian-based)
+# FINAL — Debian Bookworm (SUPPORTED)
 ############################################
 
-FROM n8nio/n8n:latest-debian
+FROM n8nio/n8n:latest-debian-bookworm
 
 USER root
 
 # -----------------------------------------
-# System dependencies (Debian)
+# System dependencies
 # -----------------------------------------
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -25,7 +25,7 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # -----------------------------------------
-# Python packages: Whisper + yt-dlp
+# Python packages (Whisper + yt-dlp)
 # -----------------------------------------
 RUN python3 -m pip install --upgrade pip --break-system-packages && \
     python3 -m pip install --break-system-packages \
@@ -36,7 +36,7 @@ RUN python3 -m pip install --upgrade pip --break-system-packages && \
         yt-dlp
 
 # -----------------------------------------
-# Writable temp directories
+# Ensure temp dirs are writable
 # -----------------------------------------
 RUN mkdir -p /tmp/n8n && chown -R node:node /tmp
 
