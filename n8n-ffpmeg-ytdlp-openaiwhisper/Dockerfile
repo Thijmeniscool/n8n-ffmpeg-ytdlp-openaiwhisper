@@ -1,16 +1,14 @@
 ############################################
 # n8n + Execute Command + ffmpeg + yt-dlp + Whisper
-# Debian-based, Railway-friendly, Node 22
+# Debian slim, Node 22
 ############################################
 
-# Base: Node 22 + Debian slim
 FROM node:22-slim
 
-# Set user
 USER root
 
 # -----------------------------------------
-# System dependencies
+# System dependencies (Debian)
 # -----------------------------------------
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -23,7 +21,7 @@ RUN apt-get update && \
         libsndfile1 \
         build-essential \
         libffi-dev \
-        openssl-dev \
+        libssl-dev \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
@@ -44,7 +42,7 @@ RUN python3 -m pip install --upgrade pip --break-system-packages && \
         yt-dlp
 
 # -----------------------------------------
-# Writable temp dirs
+# Writable temp directories
 # -----------------------------------------
 RUN mkdir -p /tmp/n8n && chown -R node:node /tmp
 
@@ -52,5 +50,4 @@ USER node
 
 EXPOSE 5678
 
-# Default command
 ENTRYPOINT ["n8n"]
