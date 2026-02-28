@@ -28,10 +28,12 @@ RUN apk update && apk add --no-cache \
 # -----------------------------------------
 RUN python3 -m venv /opt/venv
 
+# -----------------------------------------
 # Install Whisper, PyTorch CPU, yt-dlp, NumPy inside the venv
+# -----------------------------------------
 RUN /opt/venv/bin/pip install --upgrade pip && \
     /opt/venv/bin/pip install \
-        torch==2.1.2+cpu \
+        torch==2.3.1+cpu \
         -f https://download.pytorch.org/whl/cpu/torch_stable.html && \
     /opt/venv/bin/pip install \
         openai-whisper \
