@@ -1,14 +1,17 @@
 ############################################
 # n8n + Execute Command + ffmpeg + yt-dlp + Whisper
-# Debian slim, Node 22
+# Node 22, Debian slim
 ############################################
 
 FROM node:22-slim
 
+# -----------------------------------------
+# Set user to root so Execute Command node works
+# -----------------------------------------
 USER root
 
 # -----------------------------------------
-# System dependencies (Debian)
+# System dependencies
 # -----------------------------------------
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -31,7 +34,7 @@ RUN apt-get update && \
 RUN npm install -g n8n@latest
 
 # -----------------------------------------
-# Python packages (Whisper + yt-dlp)
+# Install Python packages: Whisper + yt-dlp
 # -----------------------------------------
 RUN python3 -m pip install --upgrade pip --break-system-packages && \
     python3 -m pip install --break-system-packages \
@@ -42,12 +45,16 @@ RUN python3 -m pip install --upgrade pip --break-system-packages && \
         yt-dlp
 
 # -----------------------------------------
-# Writable temp directories
+# Writable temp dirs
 # -----------------------------------------
-RUN mkdir -p /tmp/n8n && chown -R node:node /tmp
+RUN mkdir -p /tmp/n8n
 
-USER node
-
+# -----------------------------------------
+# Expose default n8n port
+# -----------------------------------------
 EXPOSE 5678
 
+# -----------------------------------------
+# Default command
+# -----------------------------------------
 ENTRYPOINT ["n8n"]
