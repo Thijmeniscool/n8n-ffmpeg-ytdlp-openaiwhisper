@@ -1,26 +1,28 @@
 ############################################
 # n8n + Execute Command + ffmpeg + yt-dlp + Whisper
-# FINAL STABLE VERSION (Alpine, Railway-safe)
+# FINAL CORRECT VERSION (Debian-based)
 ############################################
 
-FROM n8nio/n8n:latest
+FROM n8nio/n8n:latest-debian
 
 USER root
 
 # -----------------------------------------
-# System dependencies (Alpine Linux)
+# System dependencies (Debian)
 # -----------------------------------------
-RUN apk update && apk add --no-cache \
-    ffmpeg \
-    python3 \
-    py3-pip \
-    curl \
-    ca-certificates \
-    bash \
-    libsndfile \
-    build-base \
-    libffi-dev \
-    openssl-dev
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        ffmpeg \
+        python3 \
+        python3-pip \
+        curl \
+        ca-certificates \
+        bash \
+        libsndfile1 \
+        build-essential \
+        libffi-dev \
+        openssl-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # -----------------------------------------
 # Python packages: Whisper + yt-dlp
@@ -34,7 +36,7 @@ RUN python3 -m pip install --upgrade pip --break-system-packages && \
         yt-dlp
 
 # -----------------------------------------
-# Ensure writable temp space for n8n + Whisper
+# Writable temp directories
 # -----------------------------------------
 RUN mkdir -p /tmp/n8n && chown -R node:node /tmp
 
