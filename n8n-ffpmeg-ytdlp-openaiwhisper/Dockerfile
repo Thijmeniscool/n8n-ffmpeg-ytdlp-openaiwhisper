@@ -1,16 +1,12 @@
 # ----------------------------
-# Base image: n8n 1.80.2 (Debian-based)
+# Base image: Debian slim with Node 18 (matches n8n 1.80.2 requirements)
 # ----------------------------
-FROM n8nio/n8n:1.80.2
-
-# ----------------------------
-# Switch to root to install packages
-# ----------------------------
-USER root
+FROM node:18-slim
 
 # ----------------------------
 # Install system dependencies
 # ----------------------------
+USER root
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         curl \
@@ -28,27 +24,22 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # ----------------------------
+# Install n8n 1.80.2 globally
+# ----------------------------
+RUN npm install -g n8n@1.80.2
+
+# ----------------------------
 # Create a virtual environment for Python packages
 # ----------------------------
 RUN python3 -m venv /opt/venv
-
-# ----------------------------
-# Install Python packages inside venv
-# Torch CPU 2.3.1, Whisper, yt-dlp, numpy<2
-# ----------------------------
-RUN /opt/venv/bin/pip install --upgrade pip && \
-    /opt/venv/bin/pip install torch==2.3.1+cpu -f https://download.pytorch.org/whl/cpu/torch_stable.html && \
-    /opt/venv/bin/pip install openai-whisper yt-dlp "numpy<2"
-
-# ----------------------------
-# Add venv binaries to PATH
-# ----------------------------
 ENV PATH="/opt/venv/bin:$PATH"
 
 # ----------------------------
-# Switch back to n8n user
+# Install Python packages inside venv
 # ----------------------------
-USER node
+RUN pip install --upgrade pip && \
+    pip install torch==2.3.1+cpu -f https://download.pytorch.org/whl/cpu/torch_stable.html && \
+    pip install openai-whisper yt-dlp "numpy<2"
 
 # ----------------------------
 # Environment variables for Execute Command Node
@@ -61,6 +52,13 @@ ENV EXECUTE_COMMAND_ALLOWED="true" \
     NODE_ENV="production"
 
 # ----------------------------
-# Default command (same as base n8n)
+# Use non-root user for n8n
+# ----------------------------
+RUN useradd -ms /bin/bash n8nuser
+USER n8nuser
+WORKDIR /home/n8nuser
+
+# ----------------------------
+# Default command
 # ----------------------------
 CMD ["n8n"]
