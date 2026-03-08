@@ -1,5 +1,5 @@
 ##############################################
-# Debian slim + Node 22 + n8n 2.7.4 + Whisper + yt-dlp + ffmpeg + Deno
+# Debian slim + Node 22 + n8n 2.7.4 + faster-whisper + yt-dlp + ffmpeg + Deno
 ##############################################
 FROM node:22-slim
 USER root
@@ -35,23 +35,25 @@ RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh
 RUN npm install -g n8n@2.7.4
 
 # -----------------------------------------
-# Python virtual environment for Whisper + yt-dlp
+# Python virtual environment for faster-whisper + yt-dlp
 # -----------------------------------------
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 RUN pip install --upgrade pip && \
-    pip install torch==2.3.1+cpu -f https://download.pytorch.org/whl/cpu/torch_stable.html && \
-    pip install openai-whisper yt-dlp "numpy<2" youtube-transcript-api
+    pip install \
+        faster-whisper \
+        yt-dlp \
+        "numpy<2" \
+        youtube-transcript-api
 
 # -----------------------------------------
-# Pre-download Whisper tiny model
+# Pre-download faster-whisper tiny model
 # -----------------------------------------
-RUN python3 -c "import whisper; whisper.load_model('tiny')"
+RUN python3 -c "from faster_whisper import WhisperModel; WhisperModel('tiny', device='cpu', compute_type='int8')"
 
 # -----------------------------------------
 # Pre-cache yt-dlp EJS challenge solver script
-# into a shared directory accessible by node user
 # -----------------------------------------
 RUN mkdir -p /opt/yt-dlp-cache && \
     yt-dlp \
@@ -77,7 +79,6 @@ ENV EXECUTE_COMMAND_ALLOWED=true \
     NODE_ENV=production \
     YT_DLP_CACHE_DIR=/opt/yt-dlp-cache
 
-# Create n8n temp directory (writable)
 RUN mkdir -p /tmp/n8n && chown -R node:node /tmp
 
 USER node
