@@ -35,20 +35,31 @@ RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh
 RUN npm install -g n8n@2.7.4
 
 # -----------------------------------------
-# Python virtual environment for Whisper
+# Python virtual environment for Whisper + yt-dlp
 # -----------------------------------------
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Install Python packages inside venv
 RUN pip install --upgrade pip && \
     pip install torch==2.3.1+cpu -f https://download.pytorch.org/whl/cpu/torch_stable.html && \
     pip install openai-whisper yt-dlp "numpy<2" youtube-transcript-api
 
 # -----------------------------------------
-# Pre-download Whisper tiny model to cache it
+# Pre-download Whisper tiny model
 # -----------------------------------------
 RUN python3 -c "import whisper; whisper.load_model('tiny')"
+
+# -----------------------------------------
+# Pre-cache yt-dlp EJS challenge solver script
+# into a shared directory accessible by node user
+# -----------------------------------------
+RUN mkdir -p /opt/yt-dlp-cache && \
+    yt-dlp \
+        --remote-components ejs:github \
+        --cache-dir /opt/yt-dlp-cache \
+        --skip-download \
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ" || true && \
+    chmod -R 755 /opt/yt-dlp-cache
 
 # -----------------------------------------
 # Cookies for yt-dlp authentication
@@ -63,7 +74,8 @@ RUN chown node:node /home/node/cookies.txt && chmod 600 /home/node/cookies.txt
 ENV EXECUTE_COMMAND_ALLOWED=true \
     NODES_EXCLUDE="[]" \
     N8N_RUNNERS_ENABLED=true \
-    NODE_ENV=production
+    NODE_ENV=production \
+    YT_DLP_CACHE_DIR=/opt/yt-dlp-cache
 
 # Create n8n temp directory (writable)
 RUN mkdir -p /tmp/n8n && chown -R node:node /tmp
