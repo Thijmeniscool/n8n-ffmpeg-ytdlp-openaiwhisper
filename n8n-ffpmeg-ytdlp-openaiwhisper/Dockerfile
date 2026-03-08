@@ -1,11 +1,8 @@
 ##############################################
 # Debian slim + Node 22 + n8n 2.7.4 + Whisper + yt-dlp + ffmpeg
 ##############################################
-
 FROM node:22-slim
-
 USER root
-
 # -----------------------------------------
 # System dependencies
 # -----------------------------------------
@@ -24,23 +21,19 @@ RUN apt-get update && \
         libssl-dev \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-
 # -----------------------------------------
 # Install n8n 2.7.4 globally
 # -----------------------------------------
 RUN npm install -g n8n@2.7.4
-
 # -----------------------------------------
 # Python virtual environment for Whisper
 # -----------------------------------------
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-
 # Install Python packages inside venv
 RUN pip install --upgrade pip && \
     pip install torch==2.3.1+cpu -f https://download.pytorch.org/whl/cpu/torch_stable.html && \
     pip install openai-whisper yt-dlp "numpy<2"
-
 # -----------------------------------------
 # Environment variables to re-enable Execute Command
 # -----------------------------------------
@@ -48,12 +41,14 @@ ENV EXECUTE_COMMAND_ALLOWED=true \
     NODES_EXCLUDE="[]" \
     N8N_RUNNERS_ENABLED=true \
     NODE_ENV=production
-
+# -----------------------------------------
+# Cookies for yt-dlp authentication
+# -----------------------------------------
+RUN mkdir -p /home/node
+COPY cookies.txt /home/node/cookies.txt
+RUN chown node:node /home/node/cookies.txt && chmod 600 /home/node/cookies.txt
 # Create n8n temp directory (writable)
 RUN mkdir -p /tmp/n8n && chown -R node:node /tmp
-
 USER node
-
 EXPOSE 5678
-
 ENTRYPOINT ["n8n"]
