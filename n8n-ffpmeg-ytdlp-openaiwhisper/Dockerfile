@@ -1,5 +1,5 @@
 ##############################################
-# Debian slim + Node 22 + n8n 2.7.4 + faster-whisper + yt-dlp + ffmpeg + Deno
+# Debian slim + Node 22 + n8n 2.7.4 + faster-whisper + yt-dlp + ffmpeg + Deno + Kokoro TTS
 ##############################################
 FROM node:22-slim
 USER root
@@ -22,6 +22,7 @@ RUN apt-get update && \
         libssl-dev \
         ca-certificates \
         unzip \
+        espeak-ng \
     && rm -rf /var/lib/apt/lists/*
 
 # -----------------------------------------
@@ -35,7 +36,7 @@ RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh
 RUN npm install -g n8n@2.7.4
 
 # -----------------------------------------
-# Python virtual environment for faster-whisper + yt-dlp
+# Python virtual environment
 # -----------------------------------------
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
@@ -45,12 +46,20 @@ RUN pip install --upgrade pip && \
         faster-whisper \
         yt-dlp \
         "numpy<2" \
-        youtube-transcript-api
+        youtube-transcript-api \
+        Pillow \
+        kokoro \
+        soundfile
 
 # -----------------------------------------
 # Pre-download faster-whisper tiny model
 # -----------------------------------------
 RUN python3 -c "from faster_whisper import WhisperModel; WhisperModel('tiny', device='cpu', compute_type='int8')"
+
+# -----------------------------------------
+# Pre-download Kokoro model
+# -----------------------------------------
+RUN python3 -c "from kokoro import KPipeline; KPipeline(lang_code='a')"
 
 # -----------------------------------------
 # Pre-cache yt-dlp EJS challenge solver script
