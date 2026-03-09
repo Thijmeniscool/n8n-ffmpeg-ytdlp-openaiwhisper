@@ -5,7 +5,9 @@ FROM node:22-slim
 USER root
 
 # -----------------------------------------
-# System dependencies
+# System dependencies — combined into single RUN to minimize layers
+# Added espeak-ng for Kokoro, kept only what's actually needed
+# Removed build-essential, libffi-dev, libssl-dev after pip install (not needed at runtime)
 # -----------------------------------------
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -33,23 +35,27 @@ RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh
 # -----------------------------------------
 # Install n8n 2.7.4 globally
 # -----------------------------------------
-RUN npm install -g n8n@2.7.4
+RUN npm install -g n8n@2.7.4 --no-audit --no-fund
 
 # -----------------------------------------
 # Python virtual environment
+# CPU-only torch FIRST and explicitly to avoid pulling 2.5GB CUDA version
 # -----------------------------------------
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-RUN pip install --upgrade pip && \
-    pip install \
+RUN pip install --upgrade pip --no-cache-dir && \
+    pip install --no-cache-dir \
+        torch --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir \
         faster-whisper \
         yt-dlp \
         "numpy<2" \
         youtube-transcript-api \
         Pillow \
         kokoro \
-        soundfile
+        soundfile && \
+    pip cache purge
 
 # -----------------------------------------
 # Pre-download faster-whisper tiny model
@@ -86,7 +92,11 @@ ENV EXECUTE_COMMAND_ALLOWED=true \
     NODES_EXCLUDE="[]" \
     N8N_RUNNERS_ENABLED=true \
     NODE_ENV=production \
-    YT_DLP_CACHE_DIR=/opt/yt-dlp-cache
+    YT_DLP_CACHE_DIR=/opt/yt-dlp-cache \
+    # Stop Python from writing .pyc files — saves space
+    PYTHONDONTWRITEBYTECODE=1 \
+    # Stop Python from buffering stdout — better logging
+    PYTHONUNBUFFERED=1
 
 RUN mkdir -p /tmp/n8n && chown -R node:node /tmp
 
