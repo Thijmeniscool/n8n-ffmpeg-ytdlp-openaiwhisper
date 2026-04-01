@@ -1,13 +1,12 @@
 ##############################################
-# Debian slim + Node 22 + n8n 2.7.4 + faster-whisper + yt-dlp + ffmpeg + Deno + Kokoro TTS
+# Debian slim + Node 22 + n8n 2.7.4 + faster-whisper + yt-dlp + ffmpeg + Deno + Kokoro + Chatterbox + XTTS v2
 ##############################################
 FROM node:22-slim
 USER root
 
 # -----------------------------------------
-# System dependencies — combined into single RUN to minimize layers
-# Added espeak-ng for Kokoro, kept only what's actually needed
-# Removed build-essential, libffi-dev, libssl-dev after pip install (not needed at runtime)
+# System dependencies
+# Added: libgomp1 (torch GPU), libasound2 (audio), git-lfs (model downloads)
 # -----------------------------------------
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -25,10 +24,13 @@ RUN apt-get update && \
         ca-certificates \
         unzip \
         espeak-ng \
+        libgomp1 \
+        libasound2-dev \
+        libportaudio2 \
     && rm -rf /var/lib/apt/lists/*
 
 # -----------------------------------------
-# Install Deno (for yt-dlp JS challenge solving)
+# Install Deno
 # -----------------------------------------
 RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh
 
@@ -39,14 +41,14 @@ RUN npm install -g n8n@2.7.4 --no-audit --no-fund
 
 # -----------------------------------------
 # Python virtual environment
-# CPU-only torch FIRST and explicitly to avoid pulling 2.5GB CUDA version
+# GPU torch first — covers all three TTS engines
 # -----------------------------------------
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 RUN pip install --upgrade pip --no-cache-dir && \
     pip install --no-cache-dir \
-        torch --index-url https://download.pytorch.org/whl/cpu && \
+        torch torchaudio --index-url https://download.pytorch.org/whl/cu121 && \
     pip install --no-cache-dir \
         faster-whisper \
         yt-dlp \
@@ -54,13 +56,15 @@ RUN pip install --upgrade pip --no-cache-dir && \
         youtube-transcript-api \
         Pillow \
         kokoro \
-        soundfile && \
+        soundfile \
+        chatterbox-tts \
+        coqui-tts && \
     pip cache purge
 
 # -----------------------------------------
-# Pre-download faster-whisper tiny model
+# Pre-download faster-whisper base model
 # -----------------------------------------
-RUN python3 -c "from faster_whisper import WhisperModel; WhisperModel('tiny', device='cpu', compute_type='int8')"
+RUN python3 -c "from faster_whisper import WhisperModel; WhisperModel('base', device='cpu', compute_type='int8')"
 
 # -----------------------------------------
 # Pre-download Kokoro model
@@ -68,7 +72,24 @@ RUN python3 -c "from faster_whisper import WhisperModel; WhisperModel('tiny', de
 RUN python3 -c "from kokoro import KPipeline; KPipeline(lang_code='a')"
 
 # -----------------------------------------
-# Pre-cache yt-dlp EJS challenge solver script
+# Pre-download XTTS v2 model
+# Accepts license non-interactively via env var
+# -----------------------------------------
+ENV COQUI_TOS_AGREED=1
+RUN python3 -c "\
+from TTS.api import TTS; \
+TTS('tts_models/multilingual/multi-dataset/xtts_v2', gpu=False)"
+
+# -----------------------------------------
+# Pre-download Chatterbox model
+# -----------------------------------------
+RUN python3 -c "\
+import torch; \
+from chatterbox.tts import ChatterboxTTS; \
+ChatterboxTTS.from_pretrained(device='cpu')"
+
+# -----------------------------------------
+# Pre-cache yt-dlp EJS challenge solver
 # -----------------------------------------
 RUN mkdir -p /opt/yt-dlp-cache && \
     yt-dlp \
@@ -93,13 +114,11 @@ ENV EXECUTE_COMMAND_ALLOWED=true \
     N8N_RUNNERS_ENABLED=true \
     NODE_ENV=production \
     YT_DLP_CACHE_DIR=/opt/yt-dlp-cache \
-    # Stop Python from writing .pyc files — saves space
     PYTHONDONTWRITEBYTECODE=1 \
-    # Stop Python from buffering stdout — better logging
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    COQUI_TOS_AGREED=1
 
 RUN mkdir -p /tmp/n8n && chown -R node:node /tmp
-
 USER node
 EXPOSE 5678
 ENTRYPOINT ["n8n"]
