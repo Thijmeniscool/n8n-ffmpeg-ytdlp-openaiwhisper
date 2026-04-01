@@ -6,7 +6,6 @@ USER root
 
 # -----------------------------------------
 # System dependencies
-# Added: libgomp1 (torch GPU), libasound2 (audio), git-lfs (model downloads)
 # -----------------------------------------
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -41,11 +40,11 @@ RUN npm install -g n8n@2.7.4 --no-audit --no-fund
 
 # -----------------------------------------
 # Python virtual environment
-# GPU torch first — covers all three TTS engines
 # -----------------------------------------
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
+# cache-bust: cu128-v2
 RUN pip install --upgrade pip --no-cache-dir && \
     pip install --no-cache-dir \
         torch torchaudio --index-url https://download.pytorch.org/whl/cu128 && \
@@ -73,7 +72,6 @@ RUN python3 -c "from kokoro import KPipeline; KPipeline(lang_code='a')"
 
 # -----------------------------------------
 # Pre-download XTTS v2 model
-# Accepts license non-interactively via env var
 # -----------------------------------------
 ENV COQUI_TOS_AGREED=1
 RUN python3 -c "\
