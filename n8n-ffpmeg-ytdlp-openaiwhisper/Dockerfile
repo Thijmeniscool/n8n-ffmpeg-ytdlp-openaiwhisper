@@ -48,7 +48,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 RUN pip install --upgrade pip --no-cache-dir && \
     pip install --no-cache-dir \
-        torch torchaudio --index-url https://download.pytorch.org/whl/cu121 && \
+        torch torchaudio --index-url https://download.pytorch.org/whl/cu128 && \
     pip install --no-cache-dir \
         faster-whisper \
         yt-dlp \
